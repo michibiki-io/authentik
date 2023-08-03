@@ -9,8 +9,8 @@ from authentik.sources.spnego.views.dispatcher import DispatcherView
 urlpatterns = [
     path(
         "login/<slug:source_slug>/",
-        DispatcherView.as_view(kind=RequestKind.REDIRECT),
-        name="spnego-client-login",
+        DispatcherView.as_view(),
+        name="login",
     ),
 ]
 

@@ -1,5 +1,5 @@
-"""OAuth Client models"""
-from typing import TYPE_CHECKING, Optional
+"""authentik Source SPNEGO models"""
+from typing import Optional
 
 from django.db import models
 from django.http.request import HttpRequest
@@ -10,12 +10,9 @@ from rest_framework.serializers import Serializer
 from authentik.core.models import Source, UserSourceConnection
 from authentik.core.types import UILoginButton, UserSettingSerializer
 
-if TYPE_CHECKING:
-    from authentik.sources.oauth.types.registry import SourceType
-
 
 class SPNEGOSource(Source):
-    """Login using a Generic OAuth provider."""
+    """Login using a SPNEGO provider."""
 
     spn = models.TextField(blank=True)
     keytab = models.BinaryField()
@@ -26,27 +23,27 @@ class SPNEGOSource(Source):
 
     @property
     def serializer(self) -> type[Serializer]:
-        from authentik.sources.oauth.api.source import OAuthSourceSerializer
+        from authentik.sources.spnego.api.source import SPNEGOSourceSerializer
 
         return SPNEGOSourceSerializer
 
     def ui_login_button(self, request: HttpRequest) -> UILoginButton:
         return UILoginButton(
             name=self.name,
-            challenge="", #TODO
-            icon_url="", #TODO
+            challenge="",  # TODO
+            icon_url="",  # TODO
         )
 
     def ui_user_settings(self) -> Optional[UserSettingSerializer]:
         return UserSettingSerializer(
             data={
                 "title": self.name,
-                "component": "ak-user-settings-source-oauth",
+                "component": "ak-user-settings-source-spnego",
                 "configure_url": reverse(
-                    "authentik_sources_oauth:oauth-client-login",
+                    "authentik_sources_spnego:login",
                     kwargs={"source_slug": self.slug},
                 ),
-                "icon_url": "", #TODO
+                "icon_url": "",  # TODO
             }
         )
 
@@ -65,7 +62,7 @@ class UserSPNEGOSourceConnection(UserSourceConnection):
 
     @property
     def serializer(self) -> Serializer:
-        from authentik.sources.oauth.api.source_connection import (
+        from authentik.sources.spnego.api.source_connection import (
             UserSPNEGOSourceConnectionSerializer,
         )
 
