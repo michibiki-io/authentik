@@ -1,0 +1,109 @@
+"""SPNEGO Source Serializer"""
+from django.urls.base import reverse_lazy
+from django_filters.filters import BooleanFilter
+from django_filters.filterset import FilterSet
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_field
+from requests import RequestException
+from rest_framework.decorators import action
+from rest_framework.fields import BooleanField, CharField, ChoiceField, SerializerMethodField
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
+from rest_framework.viewsets import ModelViewSet
+
+from authentik.core.api.sources import SourceSerializer
+from authentik.core.api.used_by import UsedByMixin
+from authentik.core.api.utils import PassiveSerializer
+from authentik.lib.utils.http import get_http_session
+from authentik.sources.spnego.models import SPNEGOSource
+
+
+class SPNEGOSourceSerializer(SourceSerializer):
+    """SPNEGO Source Serializer"""
+
+    provider_type = ChoiceField(choices=registry.get_name_tuple())
+    callback_url = SerializerMethodField()
+    type = SerializerMethodField()
+
+    def get_login_url(self, instance: SPNEGOSource) -> str:
+        """Get SPNEGO Callback URL"""
+        relative_url = reverse_lazy(
+            "authentik_sources_spnego:spnego-client-login",
+            kwargs={"source_slug": instance.slug},
+        )
+        if "request" not in self.context:
+            return relative_url
+        return self.context["request"].build_absolute_uri(relative_url)
+
+    class Meta:
+        model = SPNEGOSource
+        fields = SourceSerializer.Meta.fields + [
+            "spn",
+            "keytab",
+        ]
+        extra_kwargs = {"consumer_secret": {"write_only": True}}
+
+
+class SPNEGOSourceFilter(FilterSet):
+    """SPNEGO Source filter set"""
+
+    has_jwks = BooleanFilter(label="Only return sources with JWKS data", method="filter_has_jwks")
+
+    def filter_has_jwks(self, queryset, name, value):  # pragma: no cover
+        """Only return sources with JWKS data"""
+        return queryset.exclude(oidc_jwks__iexact="{}")
+
+    class Meta:
+        model = SPNEGOSource
+        fields = [
+            "name",
+            "slug",
+            "enabled",
+            "authentication_flow",
+            "enrollment_flow",
+            "policy_engine_mode",
+            "user_matching_mode",
+            "provider_type",
+            "request_token_url",
+            "authorization_url",
+            "access_token_url",
+            "profile_url",
+            "consumer_key",
+            "additional_scopes",
+        ]
+
+
+class SPNEGOSourceViewSet(UsedByMixin, ModelViewSet):
+    """Source Viewset"""
+
+    queryset = SPNEGOSource.objects.all()
+    serializer_class = SPNEGOSourceSerializer
+    lookup_field = "slug"
+    filterset_class = SPNEGOSourceFilter
+    search_fields = ["name", "slug"]
+    ordering = ["name"]
+
+    @extend_schema(
+        responses={200: SourceTypeSerializer(many=True)},
+        parameters=[
+            OpenApiParameter(
+                name="name",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+            )
+        ],
+    )
+    @action(detail=False, pagination_class=None, filter_backends=[])
+    def source_types(self, request: Request) -> Response:
+        """Get all creatable source types. If ?name is set, only returns the type for <name>.
+        If <name> isn't found, returns the default type."""
+        data = []
+        if "name" in request.query_params:
+            source_type = registry.find_type(request.query_params.get("name"))
+            if source_type.__class__ != SourceType:
+                data.append(SourceTypeSerializer(source_type).data)
+        else:
+            for source_type in registry.get():
+                data.append(SourceTypeSerializer(source_type).data)
+        return Response(data)
