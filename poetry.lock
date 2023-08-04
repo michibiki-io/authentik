@@ -1084,6 +1084,17 @@ files = [
 ]
 
 [[package]]
+name = "decorator"
+version = "5.1.1"
+description = "Decorators for Humans"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "decorator-5.1.1-py3-none-any.whl", hash = "sha256:b8c3f85900b9dc423225913c5aace94729fe1fa9763b38939a95226f02d37186"},
+    {file = "decorator-5.1.1.tar.gz", hash = "sha256:637996211036b6385ef91435e4fae22989472f9d571faba8927ba8253acbc330"},
+]
+
+[[package]]
 name = "deepmerge"
 version = "1.1.0"
 description = "a toolset to deeply merge python dictionaries."
@@ -1602,6 +1613,24 @@ files = [
     {file = "gprof2dot-2022.7.29-py2.py3-none-any.whl", hash = "sha256:f165b3851d3c52ee4915eb1bd6cca571e5759823c2cd0f71a79bda93c2dc85d6"},
     {file = "gprof2dot-2022.7.29.tar.gz", hash = "sha256:45b4d298bd36608fccf9511c3fd88a773f7a1abc04d6cd39445b11ba43133ec5"},
 ]
+
+[[package]]
+name = "gssapi"
+version = "1.8.2"
+description = ""
+optional = false
+python-versions = ">=3.7"
+files = []
+develop = false
+
+[package.dependencies]
+decorator = "*"
+
+[package.source]
+type = "git"
+url = "https://github.com/mweinelt/python-gssapi.git"
+reference = "gssapi-include-dir"
+resolved_reference = "e3ca3c053d9936caacafa83cfa8c1ca7d2943038"
 
 [[package]]
 name = "gunicorn"
@@ -4354,4 +4383,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "5a15115f5ec615e5d2e34924b676df3efc4e8de83f8cdedb7eab055d41338121"
+content-hash = "22f251d236dfe7dd556b52bcdabf02dcb156c7b16aeac5212fd8c040addd55ea"

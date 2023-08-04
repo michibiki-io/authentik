@@ -27,7 +27,6 @@
             go
             gnumake
             krb5
-            libkrb5
             nodejs_20
             openssl
             pkg-config

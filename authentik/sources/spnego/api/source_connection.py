@@ -6,25 +6,22 @@ from rest_framework.viewsets import ModelViewSet
 from authentik.api.authorization import OwnerFilter, OwnerSuperuserPermissions
 from authentik.core.api.sources import UserSourceConnectionSerializer
 from authentik.core.api.used_by import UsedByMixin
-from authentik.sources.oauth.models import UserOAuthSourceConnection
+from authentik.sources.spnego.models import UserSPNEGOSourceConnection
 
 
-class UserOAuthSourceConnectionSerializer(UserSourceConnectionSerializer):
-    """OAuth Source Serializer"""
+class UserSPNEGOSourceConnectionSerializer(UserSourceConnectionSerializer):
+    """SPNEGO SourceConnection Serializer"""
 
     class Meta:
-        model = UserOAuthSourceConnection
-        fields = ["pk", "user", "source", "identifier", "access_token"]
-        extra_kwargs = {
-            "access_token": {"write_only": True},
-        }
+        model = UserSPNEGOSourceConnection
+        fields = ["pk", "user", "source", "identifier"]
 
 
-class UserOAuthSourceConnectionViewSet(UsedByMixin, ModelViewSet):
-    """Source Viewset"""
+class UserSPNEGOSourceConnectionViewSet(UsedByMixin, ModelViewSet):
+    """SPNEGO SourceConnection Viewset"""
 
-    queryset = UserOAuthSourceConnection.objects.all()
-    serializer_class = UserOAuthSourceConnectionSerializer
+    queryset = UserSPNEGOSourceConnection.objects.all()
+    serializer_class = UserSPNEGOSourceConnectionSerializer
     filterset_fields = ["source__slug"]
     search_fields = ["source__slug"]
     permission_classes = [OwnerSuperuserPermissions]

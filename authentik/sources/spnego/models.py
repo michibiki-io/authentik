@@ -3,12 +3,14 @@ from typing import Optional
 
 from django.db import models
 from django.http.request import HttpRequest
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from rest_framework.serializers import Serializer
 
 from authentik.core.models import Source, UserSourceConnection
 from authentik.core.types import UILoginButton, UserSettingSerializer
+from authentik.flows.challenge import Challenge, ChallengeTypes, ShellChallenge
 
 
 class SPNEGOSource(Source):
@@ -30,11 +32,14 @@ class SPNEGOSource(Source):
     def ui_login_button(self, request: HttpRequest) -> UILoginButton:
         return UILoginButton(
             name=self.name,
-            challenge="",  # TODO
-            icon_url="",  # TODO
+            icon_url=self.get_icon,
+            challenge=None,  # TODO
         )
 
     def ui_user_settings(self) -> Optional[UserSettingSerializer]:
+        icon = self.get_icon
+        if not icon:
+            icon = static(f"authentik/sources/{self.slug}.svg")
         return UserSettingSerializer(
             data={
                 "title": self.name,
@@ -43,7 +48,7 @@ class SPNEGOSource(Source):
                     "authentik_sources_spnego:login",
                     kwargs={"source_slug": self.slug},
                 ),
-                "icon_url": "",  # TODO
+                "icon_url": icon,  # TODO
             }
         )
 
@@ -58,10 +63,10 @@ class SPNEGOSource(Source):
 class UserSPNEGOSourceConnection(UserSourceConnection):
     """Authorized remote SPNEGO provider."""
 
-    identifier = models.CharField(max_length=255)
+    identifier = models.TextField()
 
     @property
-    def serializer(self) -> Serializer:
+    def serializer(self) -> type[Serializer]:
         from authentik.sources.spnego.api.source_connection import (
             UserSPNEGOSourceConnectionSerializer,
         )

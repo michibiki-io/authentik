@@ -1,53 +1,60 @@
-"""OAuth Callback Views"""
-from json import JSONDecodeError
-from typing import Any, Optional
+"""SPNEGO Login Views"""
+import binascii
+from base64 import b64decode, b64encode
 
+import gssapi
 from django.conf import settings
 from django.contrib import messages
-from django.http import Http404, HttpRequest, HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
-from django.shortcuts import redirect, get_object_or_404
+from django.core.exceptions import SuspiciousOperation
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+)
+from django.shortcuts import get_object_or_404, redirect
 from django.utils.translation import gettext as _
 from django.views.generic import View
 from structlog.stdlib import get_logger
 
 from authentik.core.sources.flow_manager import SourceFlowManager
-from authentik.events.models import Event, EventAction
+from authentik.events.models import Event
 from authentik.sources.spnego.models import SPNEGOSource, UserSPNEGOSourceConnection
 
 LOGGER = get_logger()
 
 
 class SPNEGOLogin(View):
-    """Base SPNEGO login view."""
+    """SPNEGO login view."""
 
     source: SPNEGOSource
 
-    def dispatch(self, request: HttpRequest, *_, **kwargs) -> HttpResponse:
-        """View Get handler"""
-        slug = kwargs.get("source_slug", "")
-
-        self.source = get_object_or_404(SPNEGOSource, slug=slug)
-
+    def dispatch(self, request: HttpRequest, source_slug: str) -> HttpResponse:
+        source = get_object_or_404(SPNEGOSource, slug=source_slug)
         if not self.source.enabled:
-            raise Http404(f"Source {slug} is not enabled.")
+            raise Http404
 
-        auth_header = request.get("Authorization")
+        auth_header = request.META.get("HTTP_AUTHORIZATION")
         if not auth_header or not auth_header.startswith("Negotiate "):
-            rep = HttpResponse(code=401)
-            rep["WWW-Authenticate"] = "Negotiate"
-            return rep
+            return HttpResponse(
+                status=401,
+                headers={
+                    "WWW-Authenticate": "Negotiate",
+                },
+            )
 
         try:
             in_token = b64decode(
-                request.headers['Authorization'][len("Negotiate "):].strip().encode(),
+                request.headers["Authorization"][len("Negotiate ") :].strip().encode(),
             )
-        except:
+        except binascii.Error:
             raise SuspiciousOperation("Malformed negotiate token")
 
-        sname = ""
-        if self.source.sname:
-            sname = gssapi.Name(self.source.sname, gssapi.C_NT_HOSTBASED_SERVICE)
-        cred = gssapi.Credential(sname, usage=gssapi.C_ACCEPT)
+        sname = None
+        if self.source.spn:
+            sname = gssapi.Name(self.source.spn, gssapi.C_NT_HOSTBASED_SERVICE)
+        cred = gssapi.Credentials(name=sname, usage=gssapi.C_ACCEPT)
         ctx = gssapi.AcceptContext(cred)
 
         out_token = ctx.step(in_token)
@@ -55,11 +62,7 @@ class SPNEGOLogin(View):
             # We canot handle extra steps with multiple backend server due to
             # load-balancing sending subsequent requests elsewhere
             out_token = ctx.delete_sec_context()
-            return HttpResponseBadRequest(
-                headers={
-                    rep["WWW-Authenticate"] = f"Negotiate {out_token}"
-                }
-            )
+            return HttpResponseBadRequest(headers={"WWW-Authenticate": f"Negotiate {out_token}"})
 
         rep = HttpResponse()
         if out_token:
@@ -72,7 +75,7 @@ class SPNEGOLogin(View):
 
         principal = ctx.peer_name.display_as(gssapi.NameType.krb5_nt_principal)
         ctx.delete_sec_context()
-        enroll_info={
+        enroll_info = {
             "principal": principal,
             "attributes": ctx.peer_name.attributes,
         }
@@ -85,10 +88,6 @@ class SPNEGOLogin(View):
         return sfm.get_flow(
             principal=principal,
         )
-
-    def get_error_redirect(self, source: SPNEGOSource, reason: str) -> str:
-        "Return url to redirect on login failure."
-        return settings.LOGIN_URL
 
     def handle_login_failure(self, reason: str) -> HttpResponse:
         "Message user and redirect on error."
@@ -105,7 +104,7 @@ class SPNEGOLogin(View):
         return redirect(self.get_error_redirect(self.source, reason))
 
 
-class OAuthSourceFlowManager(SourceFlowManager):
+class SPNEGOSourceFlowManager(SourceFlowManager):
     """Flow manager for oauth sources"""
 
     connection_type = UserSPNEGOSourceConnection

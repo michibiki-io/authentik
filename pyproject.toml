@@ -143,6 +143,7 @@ duo-client = "*"
 facebook-sdk = "*"
 flower = "*"
 geoip2 = "*"
+gssapi = { git = "https://github.com/mweinelt/python-gssapi.git", branch="gssapi-include-dir" }
 gunicorn = "*"
 kubernetes = "*"
 ldap3 = "*"
