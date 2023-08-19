@@ -25,7 +25,7 @@ def get_cookie_secret():
 def _get_callback_url(uri: str) -> str:
     return "\n".join(
         [
-            urljoin(uri, "outpost.goauthentik.io/callback")
+            urljoin(uri, "/outpost.goauthentik.io/callback")
             + f"\\?{OUTPOST_CALLBACK_SIGNATURE}=true",
             uri + f"\\?{OUTPOST_CALLBACK_SIGNATURE}=true",
         ]

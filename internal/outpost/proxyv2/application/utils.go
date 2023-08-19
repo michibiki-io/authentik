@@ -25,7 +25,22 @@ func urlJoin(originalUrl string, newPath string) string {
 	if err != nil {
 		return originalUrl
 	}
-	u.Path = path.Join(u.Path, newPath)
+
+	var sb strings.Builder
+	sb.WriteString(u.Scheme)
+	sb.WriteString("://")
+	sb.WriteString(u.Host)
+	if u.Port() != "" {
+	    sb.WriteString(":")
+		sb.WriteString(u.Port())
+	}
+	
+	baseUrl, err := url.Parse(sb.String())
+		if err != nil {
+		return originalUrl
+	}
+	
+	u.Path = path.Join(baseUrl.Path, newPath)
 	return u.String()
 }
 
